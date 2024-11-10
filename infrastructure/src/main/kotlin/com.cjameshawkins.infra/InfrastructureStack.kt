@@ -4,12 +4,11 @@ import software.amazon.awscdk.CfnOutput
 import software.amazon.awscdk.Duration
 import software.amazon.awscdk.Stack
 import software.amazon.awscdk.StackProps
-import software.amazon.awscdk.services.apigatewayv2.alpha.AddRoutesOptions
-import software.amazon.awscdk.services.apigatewayv2.alpha.HttpApi
-import software.amazon.awscdk.services.apigatewayv2.alpha.HttpMethod
-import software.amazon.awscdk.services.apigatewayv2.alpha.PayloadFormatVersion
-import software.amazon.awscdk.services.apigatewayv2.integrations.alpha.LambdaProxyIntegration
-import software.amazon.awscdk.services.apigatewayv2.integrations.alpha.LambdaProxyIntegrationProps
+import software.amazon.awscdk.services.apigatewayv2.AddRoutesOptions
+import software.amazon.awscdk.services.apigatewayv2.HttpApi
+import software.amazon.awscdk.services.apigatewayv2.HttpMethod
+import software.amazon.awscdk.services.apigatewayv2.PayloadFormatVersion
+import software.amazon.awscdk.aws_apigatewayv2_integrations.HttpLambdaIntegration
 import software.amazon.awscdk.services.dynamodb.Attribute
 import software.amazon.awscdk.services.dynamodb.AttributeType
 import software.amazon.awscdk.services.dynamodb.BillingMode
@@ -45,7 +44,7 @@ class InfrastructureStack constructor(scope: Construct, id: String, props: Stack
             .billingMode(BillingMode.PAY_PER_REQUEST)
             .build()
         val environmentVariables = mapOf(
-            "BLOG_TABLE" to productsTable.tableName,
+            "BLOG_TABLE" to blogTable.tableName,
             "AWS_LAMBDA_EXEC_WRAPPER" to "/opt/java-exec-wrapper",
         )
 
@@ -70,12 +69,9 @@ class InfrastructureStack constructor(scope: Construct, id: String, props: Stack
                 .path("/{id}")
                 .methods(listOf(HttpMethod.PUT))
                 .integration(
-                    LambdaProxyIntegration(
-                        LambdaProxyIntegrationProps.builder()
-                            .handler(putProductFunction)
-                            .payloadFormatVersion(PayloadFormatVersion.VERSION_2_0)
-                            .build()
-                    )
+                    HttpLambdaIntegration.Builder.create("putBlogPost", putBlogPostFunction).apply{
+                        payloadFormatVersion(PayloadFormatVersion.VERSION_2_0)
+                    }.build()
                 )
                 .build()
         )
@@ -84,12 +80,9 @@ class InfrastructureStack constructor(scope: Construct, id: String, props: Stack
                 .path("/{id}")
                 .methods(listOf(HttpMethod.GET))
                 .integration(
-                    LambdaProxyIntegration(
-                        LambdaProxyIntegrationProps.builder()
-                            .handler(getProductFunction)
-                            .payloadFormatVersion(PayloadFormatVersion.VERSION_2_0)
-                            .build()
-                    )
+                    HttpLambdaIntegration.Builder.create("getBlogPost", getBlogPostFunction).apply{
+                        payloadFormatVersion(PayloadFormatVersion.VERSION_2_0)
+                    }.build()
                 )
                 .build()
         )
@@ -98,12 +91,9 @@ class InfrastructureStack constructor(scope: Construct, id: String, props: Stack
                 .path("/")
                 .methods(listOf(HttpMethod.GET))
                 .integration(
-                    LambdaProxyIntegration(
-                        LambdaProxyIntegrationProps.builder()
-                            .handler(getAllProductsFunction)
-                            .payloadFormatVersion(PayloadFormatVersion.VERSION_2_0)
-                            .build()
-                    )
+                    HttpLambdaIntegration.Builder.create("getAllBlogPosts", getAllBlogPostsFunction).apply{
+                        payloadFormatVersion(PayloadFormatVersion.VERSION_2_0)
+                    }.build()
                 )
                 .build()
         )
@@ -112,12 +102,9 @@ class InfrastructureStack constructor(scope: Construct, id: String, props: Stack
                 .path("/{id}")
                 .methods(listOf(HttpMethod.DELETE))
                 .integration(
-                    LambdaProxyIntegration(
-                        LambdaProxyIntegrationProps.builder()
-                            .handler(deleteProductFunction)
-                            .payloadFormatVersion(PayloadFormatVersion.VERSION_2_0)
-                            .build()
-                    )
+                    HttpLambdaIntegration.Builder.create("deleteBlogPost", deleteBlogPostFunction).apply{
+                        payloadFormatVersion(PayloadFormatVersion.VERSION_2_0)
+                    }.build()
                 )
                 .build()
         )
@@ -134,7 +121,7 @@ class InfrastructureStack constructor(scope: Construct, id: String, props: Stack
     ) = Function.Builder.create(this, name)
         .functionName(name)
         .handler("com.cjameshawkins.blog.${name}Handler")
-        .runtime(Runtime.JAVA_11)
+        .runtime(Runtime.JAVA_17)
         .code(Code.fromAsset(codePath))
         .architecture(Architecture.ARM_64)
         .logRetention(RetentionDays.ONE_WEEK)
